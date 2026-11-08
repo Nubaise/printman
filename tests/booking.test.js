@@ -352,5 +352,74 @@ describe("Booking API integration tests", () => {
             "Only one valid date query parameter is allowed"
         );
     });
-});
 
+    test("completes the full booking-to-availability workflow", async () => {
+        const bookingDetails = {
+            rollNumber: "E2E001",
+            date: "2026-11-20",
+            startTime: "10:00",
+            pages: 60,
+            copies: 1,
+            type: "BW"
+        };
+
+        // 1. Create booking
+        const createResponse = await request(app)
+            .post("/api/bookings")
+            .send(bookingDetails);
+
+        expect(createResponse.status).toBe(201);
+
+        const createdBooking = createResponse.body.data;
+
+        expect(createdBooking.printerId).toBe("P1");
+        expect(createdBooking.durationMinutes).toBe(4);
+        expect(createdBooking.price).toBe(60);
+
+        // 2. Retrieve bookings
+        const bookingsResponse = await request(app)
+            .get("/api/bookings");
+
+        expect(bookingsResponse.status).toBe(200);
+        expect(bookingsResponse.body.success).toBe(true);
+
+        const retrievedBooking = bookingsResponse.body.data.find(
+            booking => booking.id === createdBooking.id
+        );
+
+        expect(retrievedBooking).toBeDefined();
+        expect(retrievedBooking.rollNumber).toBe("E2E001");
+
+        // 3. Check printer availability
+        const availabilityResponse = await request(app)
+            .get("/api/availability?date=2026-11-20");
+
+        expect(availabilityResponse.status).toBe(200);
+
+        const printer = availabilityResponse.body.data.find(
+            item => item.printerId === "P1"
+        );
+
+        expect(printer).toBeDefined();
+
+        // 4. Verify occupied slot
+        expect(printer.bookings).toHaveLength(1);
+
+        expect(printer.bookings[0]).toMatchObject({
+            rollNumber: "E2E001",
+            startTime: "10:00",
+            endTime: "10:04"
+        });
+
+        // 5. Verify free slots
+        expect(printer.freeSlots).toContainEqual({
+            startTime: "08:00",
+            endTime: "10:00"
+        });
+
+        expect(printer.freeSlots).toContainEqual({
+            startTime: "10:04",
+            endTime: "18:00"
+        });
+    });
+});
