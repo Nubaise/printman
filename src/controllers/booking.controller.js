@@ -18,4 +18,17 @@ const createBookingController = (req, res) => {
     }
 };
 
-module.exports = { createBookingController };
+const bookings = require("../data/bookings");
+
+const getBookingsController = (req, res) => {
+    return res.status(200).json({
+        success: true,
+        count: bookings.length,
+        data: bookings
+    });
+};
+
+module.exports = {
+    createBookingController,
+    getBookingsController
+};
