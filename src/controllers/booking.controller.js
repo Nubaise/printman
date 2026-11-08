@@ -21,6 +21,8 @@ const createBookingController = async (req, res) => {
             "Printing type must be BW or COLOR",
             "Invalid printing options",
             "Colour printing supports single-sided only",
+            "Pages must be a positive integer",
+            "Copies must be a positive integer",
             "No compatible printer available",
             "Booking must be within shop hours (08:00-18:00)",
             "No printer available for the requested time slot"
