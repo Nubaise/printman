@@ -1,3 +1,5 @@
+const AppError = require("../utils/AppError");
+
 const PRICES = {
     BW: 1,
     COLOR: 8,
@@ -14,15 +16,15 @@ const calculatePrice = ({
     const rate = PRICES[type];
 
     if (!rate) {
-        throw new Error("Invalid printing type");
+        throw new AppError("Invalid printing type", 400);
     }
 
     if (!Number.isInteger(pages) || pages <= 0) {
-        throw new Error("Pages must be a positive integer");
+        throw new AppError("Pages must be a positive integer", 400);
     }
 
     if (!Number.isInteger(copies) || copies <= 0) {
-        throw new Error("Copies must be a positive integer");
+        throw new AppError("Copies must be a positive integer", 400);
     }
 
     const printingCost = pages * copies * rate;
@@ -39,3 +41,4 @@ const calculatePrice = ({
 };
 
 module.exports = { calculatePrice };
+

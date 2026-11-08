@@ -201,7 +201,7 @@ describe("Booking API integration tests", () => {
 
         expect(printerIds).toEqual(["P1", "P2", "P3"]);
 
-            response.body.data.forEach(printer => {
+        response.body.data.forEach(printer => {
             expect(printer).toHaveProperty("bookings");
             expect(printer).toHaveProperty("freeSlots");
         });
@@ -291,4 +291,27 @@ describe("Booking API integration tests", () => {
             })
         ).toBe(1);
     });
+
+    test("rejects an invalid availability date", async () => {
+        const response = await request(app)
+            .get("/api/availability?date=2026-02-30");
+
+        expect(response.status).toBe(400);
+        expect(response.body).toEqual({
+            success: false,
+            message: "Valid date is required (YYYY-MM-DD)"
+        });
+    });
+
+    test("rejects a missing availability date", async () => {
+        const response = await request(app)
+            .get("/api/availability");
+
+        expect(response.status).toBe(400);
+        expect(response.body).toEqual({
+            success: false,
+            message: "Valid date is required (YYYY-MM-DD)"
+        });
+    });
 });
+

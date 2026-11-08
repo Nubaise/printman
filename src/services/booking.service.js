@@ -1,5 +1,6 @@
 
 const prisma = require("../config/prisma");
+const AppError = require("../utils/AppError");
 
 const { calculatePrice } = require("./pricing.service");
 const { calculateDuration } = require("./duration.service");
@@ -37,7 +38,7 @@ const createBooking = async (request) => {
         typeof request !== "object" ||
         Array.isArray(request)
     ) {
-        throw new Error("Invalid booking request");
+        throw new AppError("Invalid booking request", 400);
     }
 
     const {
@@ -56,34 +57,34 @@ const createBooking = async (request) => {
         typeof rollNumber !== "string" ||
         !rollNumber.trim()
     ) {
-        throw new Error("Valid roll number is required");
+        throw new AppError("Valid roll number is required", 400);
     }
 
     const normalizedRollNumber = rollNumber.trim();
 
     // 2. Validate date and time
     if (!isValidDate(date)) {
-        throw new Error("Invalid date. Use YYYY-MM-DD");
+        throw new AppError("Invalid date. Use YYYY-MM-DD", 400);
     }
 
     if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(startTime || "")) {
-        throw new Error("Invalid start time. Use HH:mm");
+        throw new AppError("Invalid start time. Use HH:mm", 400);
     }
 
     // 3. Validate printing options
     if (!["BW", "COLOR"].includes(type)) {
-        throw new Error("Printing type must be BW or COLOR");
+        throw new AppError("Printing type must be BW or COLOR", 400);
     }
 
     if (
         typeof doubleSided !== "boolean" ||
         typeof binding !== "boolean"
     ) {
-        throw new Error("Invalid printing options");
+        throw new AppError("Invalid printing options", 400);
     }
 
     if (type === "COLOR" && doubleSided) {
-        throw new Error("Colour printing supports single-sided only");
+        throw new AppError("Colour printing supports single-sided only", 400);
     }
 
     // 4. Validate pages and copies and calculate price
@@ -124,7 +125,7 @@ const createBooking = async (request) => {
         });
 
         if (compatiblePrinters.length === 0) {
-            throw new Error("No compatible printer available");
+            throw new AppError("No compatible printer available", 400);
         }
 
         // Lock candidate printers in a consistent order
@@ -150,8 +151,8 @@ const createBooking = async (request) => {
             const endMinutes = startMinutes + duration.totalDuration;
 
             if (startMinutes < 480 || endMinutes > 1080) {
-                throw new Error(
-                    "Booking must be within shop hours (08:00-18:00)"
+                throw new AppError(
+                    "Booking must be within shop hours (08:00-18:00)", 400
                 );
             }
 
@@ -219,8 +220,8 @@ const createBooking = async (request) => {
             };
         }
 
-        throw new Error(
-            "No printer available for the requested time slot"
+        throw new AppError(
+            "No printer available for the requested time slot", 400
         );
     });
 };
@@ -228,3 +229,6 @@ const createBooking = async (request) => {
 module.exports = {
     createBooking
 };
+
+
+
