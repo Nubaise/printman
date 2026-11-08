@@ -1,6 +1,8 @@
 const express = require("express");
 const cors = require("cors");
 
+const printerRoutes = require("./routes/printer.routes");
+
 const app = express();
 
 app.use(cors());
@@ -11,5 +13,7 @@ app.get("/", (req, res) => {
         message: "Campus Xerox Booking API is running"
     });
 });
+
+app.use("/api/printers", printerRoutes);
 
 module.exports = app;
