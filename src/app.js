@@ -2,6 +2,7 @@ const express = require("express");
 const cors = require("cors");
 
 const printerRoutes = require("./routes/printer.routes");
+const bookingRoutes = require("./routes/booking.routes");
 
 const app = express();
 
@@ -15,5 +16,6 @@ app.get("/", (req, res) => {
 });
 
 app.use("/api/printers", printerRoutes);
+app.use("/api/bookings", bookingRoutes);
 
 module.exports = app;
