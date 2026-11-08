@@ -2,6 +2,8 @@ const {
     getDailyAvailability
 } = require("../services/availability.service");
 
+const AppError = require("../utils/AppError");
+
 const isValidDate = (date) => {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(date || "")) {
         return false;
@@ -21,32 +23,22 @@ const isValidDate = (date) => {
 };
 
 const getAvailabilityController = async (req, res) => {
-    try {
-        const { date } = req.query;
+    const { date } = req.query;
 
-        if (!isValidDate(date)) {
-            return res.status(400).json({
-                success: false,
-                message: "Valid date is required (YYYY-MM-DD)"
-            });
-        }
-
-        const availability = await getDailyAvailability(date);
-
-        return res.status(200).json({
-            success: true,
-            date,
-            data: availability
-        });
-
-    } catch (error) {
-        console.error("Availability retrieval failed:", error);
-
-        return res.status(500).json({
-            success: false,
-            message: "Failed to fetch availability"
-        });
+    if (!isValidDate(date)) {
+        throw new AppError(
+            "Valid date is required (YYYY-MM-DD)",
+            400
+        );
     }
+
+    const availability = await getDailyAvailability(date);
+
+    return res.status(200).json({
+        success: true,
+        date,
+        data: availability
+    });
 };
 
 module.exports = { getAvailabilityController };
