@@ -1,5 +1,4 @@
-const printers = require("../data/printers");
-const bookings = require("../data/bookings");
+const prisma = require("../config/prisma");
 
 const SHOP_OPEN = 8 * 60;
 const SHOP_CLOSE = 18 * 60;
@@ -16,18 +15,52 @@ const minutesToTime = (minutes) => {
     return `${String(hours).padStart(2, "0")}:${String(remainingMinutes).padStart(2, "0")}`;
 };
 
-const getDailyAvailability = (date) => {
+const getDailyAvailability = async (date) => {
+
+    const bookingDate = new Date(`${date}T00:00:00.000Z`);
+
+    // Fetch all printers and their bookings for the requested date
+    const printers = await prisma.printer.findMany({
+        where: {
+            status: "ACTIVE"
+        },
+        include: {
+            bookings: {
+                where: {
+                    bookingDate,
+                    status: {
+                        not: "CANCELLED"
+                    }
+                },
+                orderBy: {
+                    startTime: "asc"
+                }
+            }
+        },
+        orderBy: {
+            id: "asc"
+        }
+    });
+
     return printers.map(printer => {
 
-        // Get bookings for this printer and date
-        const printerBookings = bookings
-            .filter(booking =>
-                booking.printerId === printer.id &&
-                booking.date === date
-            )
-            .sort((a, b) =>
-                a.startTime.localeCompare(b.startTime)
-            );
+        const printerBookings = printer.bookings.map(booking => ({
+            id: booking.id,
+            rollNumber: booking.rollNumber,
+            printerId: booking.printerId,
+            date,
+            startTime: booking.startTime.toISOString().slice(11, 16),
+            endTime: booking.endTime.toISOString().slice(11, 16),
+            pages: booking.pages,
+            copies: booking.copies,
+            type: booking.type,
+            doubleSided: booking.doubleSided,
+            binding: booking.binding,
+            durationMinutes: booking.durationMinutes,
+            price: Number(booking.price),
+            status: booking.status,
+            createdAt: booking.createdAt.toISOString()
+        }));
 
         // Calculate free intervals
         const freeSlots = [];
@@ -47,7 +80,6 @@ const getDailyAvailability = (date) => {
             currentTime = Math.max(currentTime, bookingEnd);
         }
 
-        // Add remaining free time until shop closing
         if (currentTime < SHOP_CLOSE) {
             freeSlots.push({
                 startTime: minutesToTime(currentTime),

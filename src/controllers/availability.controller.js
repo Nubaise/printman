@@ -20,7 +20,7 @@ const isValidDate = (date) => {
     );
 };
 
-const getAvailabilityController = (req, res) => {
+const getAvailabilityController = async (req, res) => {
     try {
         const { date } = req.query;
 
@@ -31,7 +31,7 @@ const getAvailabilityController = (req, res) => {
             });
         }
 
-        const availability = getDailyAvailability(date);
+        const availability = await getDailyAvailability(date);
 
         return res.status(200).json({
             success: true,
@@ -40,9 +40,11 @@ const getAvailabilityController = (req, res) => {
         });
 
     } catch (error) {
+        console.error("Availability retrieval failed:", error);
+
         return res.status(500).json({
             success: false,
-            message: error.message
+            message: "Failed to fetch availability"
         });
     }
 };
