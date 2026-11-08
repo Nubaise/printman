@@ -1,4 +1,3 @@
-
 const prisma = require("../config/prisma");
 const AppError = require("../utils/AppError");
 
@@ -33,12 +32,36 @@ const isValidDate = (date) => {
 };
 
 const createBooking = async (request) => {
+    // 1. Validate request object
     if (
         !request ||
         typeof request !== "object" ||
         Array.isArray(request)
     ) {
         throw new AppError("Invalid booking request", 400);
+    }
+
+    // 2. Reject unexpected request fields
+    const allowedFields = [
+        "rollNumber",
+        "date",
+        "startTime",
+        "pages",
+        "copies",
+        "type",
+        "doubleSided",
+        "binding"
+    ];
+
+    const unexpectedFields = Object.keys(request).filter(
+        field => !allowedFields.includes(field)
+    );
+
+    if (unexpectedFields.length > 0) {
+        throw new AppError(
+            `Unexpected booking field: ${unexpectedFields[0]}`,
+            400
+        );
     }
 
     const {
@@ -52,7 +75,7 @@ const createBooking = async (request) => {
         binding = false
     } = request;
 
-    // 1. Validate and normalize student details
+    // 3. Validate and normalize student details
     if (
         typeof rollNumber !== "string" ||
         !rollNumber.trim()
@@ -62,7 +85,7 @@ const createBooking = async (request) => {
 
     const normalizedRollNumber = rollNumber.trim();
 
-    // 2. Validate date and time
+    // 4. Validate date and time
     if (!isValidDate(date)) {
         throw new AppError("Invalid date. Use YYYY-MM-DD", 400);
     }
@@ -71,7 +94,7 @@ const createBooking = async (request) => {
         throw new AppError("Invalid start time. Use HH:mm", 400);
     }
 
-    // 3. Validate printing options
+    // 5. Validate printing options
     if (!["BW", "COLOR"].includes(type)) {
         throw new AppError("Printing type must be BW or COLOR", 400);
     }
@@ -84,10 +107,13 @@ const createBooking = async (request) => {
     }
 
     if (type === "COLOR" && doubleSided) {
-        throw new AppError("Colour printing supports single-sided only", 400);
+        throw new AppError(
+            "Colour printing supports single-sided only",
+            400
+        );
     }
 
-    // 4. Validate pages and copies and calculate price
+    // 6. Validate pages and copies and calculate price
     const price = calculatePrice({
         pages,
         copies,
@@ -101,7 +127,7 @@ const createBooking = async (request) => {
         `1970-01-01T${startTime}:00.000Z`
     );
 
-    // 5. Allocate printer and save booking transactionally
+    // 7. Allocate printer and save booking transactionally
     return prisma.$transaction(async (tx) => {
 
         const compatiblePrinters = await tx.printer.findMany({
@@ -125,7 +151,10 @@ const createBooking = async (request) => {
         });
 
         if (compatiblePrinters.length === 0) {
-            throw new AppError("No compatible printer available", 400);
+            throw new AppError(
+                "No compatible printer available",
+                400
+            );
         }
 
         // Lock candidate printers in a consistent order
@@ -138,7 +167,7 @@ const createBooking = async (request) => {
             `;
         }
 
-        // 6. Check printer availability
+        // 8. Check printer availability
         for (const printer of compatiblePrinters) {
 
             const duration = calculateDuration({
@@ -152,7 +181,8 @@ const createBooking = async (request) => {
 
             if (startMinutes < 480 || endMinutes > 1080) {
                 throw new AppError(
-                    "Booking must be within shop hours (08:00-18:00)", 400
+                    "Booking must be within shop hours (08:00-18:00)",
+                    400
                 );
             }
 
@@ -182,7 +212,7 @@ const createBooking = async (request) => {
                 continue;
             }
 
-            // 7. Save booking
+            // 9. Save booking
             const booking = await tx.booking.create({
                 data: {
                     rollNumber: normalizedRollNumber,
@@ -221,7 +251,8 @@ const createBooking = async (request) => {
         }
 
         throw new AppError(
-            "No printer available for the requested time slot", 400
+            "No printer available for the requested time slot",
+            400
         );
     });
 };
@@ -229,6 +260,3 @@ const createBooking = async (request) => {
 module.exports = {
     createBooking
 };
-
-
-

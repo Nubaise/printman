@@ -23,8 +23,31 @@ const isValidDate = (date) => {
 };
 
 const getAvailabilityController = async (req, res) => {
+
+    // 1. Validate query parameters
+    const queryFields = Object.keys(req.query);
+
+    if (queryFields.length === 0) {
+        throw new AppError(
+            "Valid date is required (YYYY-MM-DD)",
+            400
+        );
+    }
+
+    if (
+        queryFields.length !== 1 ||
+        queryFields[0] !== "date" ||
+        typeof req.query.date !== "string"
+    ) {
+        throw new AppError(
+            "Only one valid date query parameter is allowed",
+            400
+        );
+    }
+
     const { date } = req.query;
 
+    // 2. Validate date format and actual calendar date
     if (!isValidDate(date)) {
         throw new AppError(
             "Valid date is required (YYYY-MM-DD)",
@@ -32,6 +55,7 @@ const getAvailabilityController = async (req, res) => {
         );
     }
 
+    // 3. Fetch daily printer availability
     const availability = await getDailyAvailability(date);
 
     return res.status(200).json({
@@ -41,4 +65,6 @@ const getAvailabilityController = async (req, res) => {
     });
 };
 
-module.exports = { getAvailabilityController };
+module.exports = {
+    getAvailabilityController
+};

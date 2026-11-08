@@ -313,5 +313,44 @@ describe("Booking API integration tests", () => {
             message: "Valid date is required (YYYY-MM-DD)"
         });
     });
+
+    test("should reject unexpected booking fields", async () => {
+        const response = await request(app)
+            .post("/api/bookings")
+            .send({
+                rollNumber: "CS2026001",
+                date: "2026-11-08",
+                startTime: "10:00",
+                pages: 10,
+                copies: 1,
+                type: "BW",
+                printerId: "P1"
+            });
+
+        expect(response.status).toBe(400);
+        expect(response.body.message).toBe(
+            "Unexpected booking field: printerId"
+        );
+    });
+
+    test("should reject unexpected availability query parameters", async () => {
+        const response = await request(app)
+            .get("/api/availability?date=2026-11-08&printerId=P1");
+
+        expect(response.status).toBe(400);
+        expect(response.body.message).toBe(
+            "Only one valid date query parameter is allowed"
+        );
+    });
+
+    test("should reject duplicate availability date parameters", async () => {
+        const response = await request(app)
+            .get("/api/availability?date=2026-11-08&date=2026-11-09");
+
+        expect(response.status).toBe(400);
+        expect(response.body.message).toBe(
+            "Only one valid date query parameter is allowed"
+        );
+    });
 });
 
