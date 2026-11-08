@@ -206,4 +206,45 @@ describe("Booking API integration tests", () => {
             expect(printer).toHaveProperty("freeSlots");
         });
     });
+
+    test("rejects a missing request body", async () => {
+        const response = await request(app)
+            .post("/api/bookings")
+            .send(null);
+
+        expect(response.status).toBe(400);
+        expect(response.body.message).toBe("Invalid booking request");
+    });
+
+    test("rejects a whitespace-only roll number", async () => {
+        const response = await request(app)
+            .post("/api/bookings")
+            .send({
+                rollNumber: "   ",
+                date: "2026-11-18",
+                startTime: "09:00",
+                pages: 20,
+                copies: 1,
+                type: "BW"
+            });
+
+        expect(response.status).toBe(400);
+        expect(response.body.message).toBe("Valid roll number is required");
+    });
+
+    test("trims whitespace from roll numbers before saving", async () => {
+        const response = await request(app)
+            .post("/api/bookings")
+            .send({
+                rollNumber: " TEST009 ",
+                date: "2026-11-18",
+                startTime: "09:00",
+                pages: 20,
+                copies: 1,
+                type: "BW"
+            });
+
+        expect(response.status).toBe(201);
+        expect(response.body.data.rollNumber).toBe("TEST009");
+    });
 });

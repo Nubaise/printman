@@ -1,3 +1,4 @@
+
 const prisma = require("../config/prisma");
 
 const { calculatePrice } = require("./pricing.service");
@@ -31,6 +32,14 @@ const isValidDate = (date) => {
 };
 
 const createBooking = async (request) => {
+    if (
+        !request ||
+        typeof request !== "object" ||
+        Array.isArray(request)
+    ) {
+        throw new Error("Invalid booking request");
+    }
+
     const {
         rollNumber,
         date,
@@ -42,10 +51,15 @@ const createBooking = async (request) => {
         binding = false
     } = request;
 
-    // 1. Validate student details
-    if (!rollNumber || typeof rollNumber !== "string") {
+    // 1. Validate and normalize student details
+    if (
+        typeof rollNumber !== "string" ||
+        !rollNumber.trim()
+    ) {
         throw new Error("Valid roll number is required");
     }
+
+    const normalizedRollNumber = rollNumber.trim();
 
     // 2. Validate date and time
     if (!isValidDate(date)) {
@@ -72,7 +86,7 @@ const createBooking = async (request) => {
         throw new Error("Colour printing supports single-sided only");
     }
 
-    // 4. Calculate price
+    // 4. Validate pages and copies and calculate price
     const price = calculatePrice({
         pages,
         copies,
@@ -80,8 +94,8 @@ const createBooking = async (request) => {
         binding
     });
 
-    // Convert input date and times into Date objects
     const bookingDate = new Date(`${date}T00:00:00.000Z`);
+
     const startDateTime = new Date(
         `1970-01-01T${startTime}:00.000Z`
     );
@@ -89,7 +103,6 @@ const createBooking = async (request) => {
     // 5. Allocate printer and save booking transactionally
     return prisma.$transaction(async (tx) => {
 
-        // Find compatible printers from PostgreSQL
         const compatiblePrinters = await tx.printer.findMany({
             where: {
                 status: "ACTIVE",
@@ -102,7 +115,6 @@ const createBooking = async (request) => {
             ]
         });
 
-        // HIGH reliability must be preferred over LOW.
         compatiblePrinters.sort((a, b) => {
             if (a.reliability !== b.reliability) {
                 return a.reliability === "HIGH" ? -1 : 1;
@@ -115,8 +127,7 @@ const createBooking = async (request) => {
             throw new Error("No compatible printer available");
         }
 
-        // Lock all candidate printers in a consistent order.
-        // Concurrent booking requests must wait for these locks.
+        // Lock candidate printers in a consistent order
         for (const printer of compatiblePrinters) {
             await tx.$queryRaw`
                 SELECT id
@@ -126,7 +137,7 @@ const createBooking = async (request) => {
             `;
         }
 
-        // 6. Try each compatible printer
+        // 6. Check printer availability
         for (const printer of compatiblePrinters) {
 
             const duration = calculateDuration({
@@ -150,7 +161,6 @@ const createBooking = async (request) => {
                 `1970-01-01T${endTime}:00.000Z`
             );
 
-            // Check overlapping bookings in PostgreSQL
             const existingBooking = await tx.booking.findFirst({
                 where: {
                     printerId: printer.id,
@@ -171,10 +181,10 @@ const createBooking = async (request) => {
                 continue;
             }
 
-            // 7. Create booking in PostgreSQL
+            // 7. Save booking
             const booking = await tx.booking.create({
                 data: {
-                    rollNumber,
+                    rollNumber: normalizedRollNumber,
                     printerId: printer.id,
                     bookingDate,
                     startTime: startDateTime,
@@ -190,7 +200,6 @@ const createBooking = async (request) => {
                 }
             });
 
-            // Preserve the existing API response format
             return {
                 id: booking.id,
                 rollNumber: booking.rollNumber,
