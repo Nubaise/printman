@@ -247,4 +247,48 @@ describe("Booking API integration tests", () => {
         expect(response.status).toBe(201);
         expect(response.body.data.rollNumber).toBe("TEST009");
     });
+
+    test("database rejects overlapping bookings even when bypassing booking service", async () => {
+        const bookingDate = new Date("2026-11-19T00:00:00.000Z");
+
+        const firstBooking = {
+            rollNumber: "DBTEST001",
+            printerId: "P3",
+            bookingDate,
+            startTime: new Date("1970-01-01T10:00:00.000Z"),
+            endTime: new Date("1970-01-01T10:05:00.000Z"),
+            pages: 30,
+            copies: 1,
+            type: "COLOR",
+            doubleSided: false,
+            binding: false,
+            durationMinutes: 5,
+            price: 240,
+            status: "CONFIRMED"
+        };
+
+        await prisma.booking.create({
+            data: firstBooking
+        });
+
+        await expect(
+            prisma.booking.create({
+                data: {
+                    ...firstBooking,
+                    rollNumber: "DBTEST002",
+                    startTime: new Date("1970-01-01T10:03:00.000Z"),
+                    endTime: new Date("1970-01-01T10:08:00.000Z")
+                }
+            })
+        ).rejects.toThrow("bookings_no_overlapping_slots");
+
+        expect(
+            await prisma.booking.count({
+                where: {
+                    bookingDate,
+                    printerId: "P3"
+                }
+            })
+        ).toBe(1);
+    });
 });
