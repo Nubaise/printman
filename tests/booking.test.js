@@ -422,4 +422,89 @@ describe("Booking API integration tests", () => {
             endTime: "18:00"
         });
     });
-});
+
+    test("falls back to P2 when P1 is occupied", async () => {
+        const first = await request(app)
+            .post("/api/bookings")
+            .send({
+                rollNumber: "FALLBACK001",
+                date: "2026-11-21",
+                startTime: "09:00",
+                pages: 30,
+                copies: 1,
+                type: "BW"
+            });
+
+        const second = await request(app)
+            .post("/api/bookings")
+            .send({
+                rollNumber: "FALLBACK002",
+                date: "2026-11-21",
+                startTime: "09:00",
+                pages: 30,
+                copies: 1,
+                type: "BW"
+            });
+
+        expect(first.status).toBe(201);
+        expect(first.body.data.printerId).toBe("P1");
+
+        expect(second.status).toBe(201);
+        expect(second.body.data.printerId).toBe("P2");
+    });
+
+    test("accepts a booking that ends exactly at shop closing time", async () => {
+        const response = await request(app)
+            .post("/api/bookings")
+            .send({
+                rollNumber: "CLOSING001",
+                date: "2026-11-21",
+                startTime: "17:56",
+                pages: 60,
+                copies: 1,
+                type: "BW"
+            });
+
+        expect(response.status).toBe(201);
+        expect(response.body.data.printerId).toBe("P1");
+        expect(response.body.data.durationMinutes).toBe(4);
+        expect(response.body.data.endTime).toBe("18:00");
+    });
+
+    test("rejects a booking that would finish after shop closing time", async () => {
+        const response = await request(app)
+            .post("/api/bookings")
+            .send({
+                rollNumber: "CLOSING002",
+                date: "2026-11-21",
+                startTime: "17:57",
+                pages: 60,
+                copies: 1,
+                type: "BW"
+            });
+
+        expect(response.status).toBe(400);
+        expect(response.body.message).toBe(
+            "Booking must be within shop hours (08:00-18:00)"
+        );
+
+        expect(await prisma.booking.count()).toBe(0);
+    });
+
+    test("assigns double-sided B&W jobs only to compatible printers", async () => {
+        const response = await request(app)
+            .post("/api/bookings")
+            .send({
+                rollNumber: "COMPAT001",
+                date: "2026-11-21",
+                startTime: "09:00",
+                pages: 30,
+                copies: 1,
+                type: "BW",
+                doubleSided: true
+            });
+
+        expect(response.status).toBe(201);
+        expect(response.body.data.printerId).toBe("P1");
+        expect(response.body.data.doubleSided).toBe(true);
+    });});
